@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Climbing Grade Converter (YDS, French, UIAA, V-grade) — Hive Climbing</title>
+<meta name="description" content="Convert climbing grades between systems: YDS, French, UIAA, British, Australian, V-grade, Font. Sport, trad, and bouldering.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<!-- GA4: G-FMMGEHVXNV -->
+<style>
+:root { --bg: #f5f1ea; --ink: #1a1610; --soft: #4a4030; --accent: #b85a3a; --warm: #5a6a3a; --rule: #d8d0bc; --card: #fff; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.5; }
+header { padding: 1.25rem; max-width: 760px; margin: 0 auto; border-bottom: 1px solid var(--rule); }
+.brand-back { color: var(--soft); text-decoration: none; font-size: 0.9rem; }
+main { max-width: 760px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+h1 { font-size: 1.7rem; margin-bottom: 0.5rem; }
+.sub { color: var(--soft); margin-bottom: 2rem; }
+.panel { background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 1.5rem; margin-bottom: 1.5rem; }
+.tab-bar { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
+.tab { padding: 0.5rem 1rem; background: var(--bg); border: 1px solid var(--rule); border-radius: 4px; cursor: pointer; font-size: 0.95rem; }
+.tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 1rem; }
+.field label { display: block; font-size: 0.85rem; color: var(--soft); margin-bottom: 0.3rem; font-weight: 600; }
+.field select { width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--rule); border-radius: 4px; font-size: 1rem; font-family: inherit; background: var(--bg); }
+.results { background: #fff; border-left: 3px solid var(--warm); padding: 1.5rem; border-radius: 4px; margin-top: 1.5rem; display: none; }
+.results.visible { display: block; }
+.grade-row { padding: 0.6rem 0; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; }
+.grade-row:last-child { border-bottom: none; }
+.grade-row .system { color: var(--soft); font-weight: 600; }
+.grade-row .value { font-weight: 700; color: var(--accent); font-size: 1.05rem; }
+.affiliate { background: #fff; border: 1px solid var(--rule); padding: 1.25rem; border-radius: 4px; margin-top: 1.5rem; }
+.affiliate a { color: var(--accent); font-weight: 700; }
+.affiliate .disc { font-size: 0.85rem; color: var(--soft); margin-top: 0.6rem; }
+footer { max-width: 760px; margin: 3rem auto 2rem; padding: 1.5rem 1.25rem 0; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--soft); text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/" class="brand-back">← Hive Climbing</a>
+</header>
+<main>
+
+<h1>Climbing Grade Converter</h1>
+<p class="sub">YDS, French, UIAA, British, Australian (sport/trad) and V-grade / Font (bouldering). Pick your grade, see the equivalent in every other system.</p>
+
+<div class="panel">
+
+  <div class="tab-bar">
+    <div class="tab active" data-mode="route">Sport / Trad routes</div>
+    <div class="tab" data-mode="boulder">Bouldering</div>
+  </div>
+
+  <div id="route-mode">
+    <div class="field-grid">
+      <div class="field">
+        <label>Grade system you know</label>
+        <select id="route_system">
+          <option value="yds" selected>YDS (American: 5.10b, 5.12a)</option>
+          <option value="french">French (6a, 7b+)</option>
+          <option value="uiaa">UIAA (VI, VIII+)</option>
+          <option value="british_tech">British Technical (5a, 6c)</option>
+          <option value="ewbank">Australian / Ewbank (18, 25)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Grade</label>
+        <select id="route_grade"></select>
+      </div>
+    </div>
+  </div>
+
+  <div id="boulder-mode" style="display: none;">
+    <div class="field-grid">
+      <div class="field">
+        <label>Bouldering system</label>
+        <select id="boulder_system">
+          <option value="vgrade" selected>V-grade (V0, V8, V15)</option>
+          <option value="font">Fontainebleau (5, 6B+, 8C)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Grade</label>
+        <select id="boulder_grade"></select>
+      </div>
+    </div>
+  </div>
+
+  <button onclick="convertGrade()" style="background: var(--accent); color: #fff; border: none; padding: 0.85rem 1.5rem; font-size: 1rem; font-weight: 700; border-radius: 4px; cursor: pointer; margin-top: 0.5rem;">Convert grade</button>
+
+  <div class="results" id="results"></div>
+
+</div>
+
+</main>
+<footer>
+  <p>Part of <a href="https://thehivemakes.com" style="color: var(--soft);">the Hive</a>. Made in Wilmington, Delaware.</p>
+</footer>
+
+<script>
+// Route grade equivalency table (sport / trad)
+// Format: index -> [yds, french, uiaa, british_tech, ewbank]
+const ROUTE_TABLE = [
+  ["5.5",   "4a",   "IV+",  "4a", "12"],
+  ["5.6",   "4b",   "V-",   "4a", "13"],
+  ["5.7",   "4c",   "V",    "4b", "14-15"],
+  ["5.8",   "5a",   "V+",   "4c", "16"],
+  ["5.9",   "5b",   "VI-",  "5a", "17"],
+  ["5.10a", "5c",   "VI",   "5a", "18"],
+  ["5.10b", "6a",   "VI+",  "5b", "19"],
+  ["5.10c", "6a+",  "VII-", "5b", "20"],
+  ["5.10d", "6b",   "VII",  "5c", "21"],
+  ["5.11a", "6b+",  "VII+", "5c", "22"],
+  ["5.11b", "6c",   "VIII-","5c", "23"],
+  ["5.11c", "6c+",  "VIII", "6a", "24"],
+  ["5.11d", "7a",   "VIII", "6a", "25"],
+  ["5.12a", "7a+",  "VIII+","6b", "25-26"],
+  ["5.12b", "7b",   "IX-",  "6b", "26"],
+  ["5.12c", "7b+",  "IX",   "6c", "27"],
+  ["5.12d", "7c",   "IX+",  "6c", "28"],
+  ["5.13a", "7c+",  "X-",   "7a", "29"],
+  ["5.13b", "8a",   "X",    "7a", "30"],
+  ["5.13c", "8a+",  "X+",   "7a", "31"],
+  ["5.13d", "8b",   "X+",   "7b", "32"],
+  ["5.14a", "8b+",  "XI-",  "7b", "33"],
+  ["5.14b", "8c",   "XI",   "7b", "34"],
+  ["5.14c", "8c+",  "XI+",  "7c", "35"],
+  ["5.14d", "9a",   "XII-", "7c", "36"],
+  ["5.15a", "9a+",  "XII",  "7c", "37"],
+  ["5.15b", "9b",   "XII+", "7c", "38"],
+  ["5.15c", "9b+",  "XII+", "7c", "39"],
+  ["5.15d", "9c",   "XIII", "7c+","40"]
+];
+
+const ROUTE_LABELS = { yds: "YDS (American)", french: "French", uiaa: "UIAA", british_tech: "British Tech", ewbank: "Australian/Ewbank" };
+const ROUTE_INDICES = { yds: 0, french: 1, uiaa: 2, british_tech: 3, ewbank: 4 };
+
+const BOULDER_TABLE = [
+  ["V0",  "4"],
+  ["V0+", "5"],
+  ["V1",  "5+"],
+  ["V2",  "6A"],
+  ["V3",  "6A+"],
+  ["V4",  "6B"],
+  ["V5",  "6C"],
+  ["V6",  "7A"],
+  ["V7",  "7A+"],
+  ["V8",  "7B"],
+  ["V9",  "7C"],
+  ["V10", "7C+"],
+  ["V11", "8A"],
+  ["V12", "8A+"],
+  ["V13", "8B"],
+  ["V14", "8B+"],
+  ["V15", "8C"],
+  ["V16", "8C+"],
+  ["V17", "9A"]
+];
+
+const BOULDER_LABELS = { vgrade: "V-grade", font: "Fontainebleau" };
+
+let mode = "route";
+
+function populateRoute() {
+  const sys = document.getElementById("route_system").value;
+  const idx = ROUTE_INDICES[sys];
+  const sel = document.getElementById("route_grade");
+  sel.innerHTML = ROUTE_TABLE.map(r => `<option value="${r[idx]}">${r[idx]}</option>`).join("");
+  sel.value = sys === "yds" ? "5.10a" : sel.options[5].value;
+}
+function populateBoulder() {
+  const sys = document.getElementById("boulder_system").value;
+  const idx = sys === "vgrade" ? 0 : 1;
+  const sel = document.getElementById("boulder_grade");
+  sel.innerHTML = BOULDER_TABLE.map(r => `<option value="${r[idx]}">${r[idx]}</option>`).join("");
+  sel.value = sys === "vgrade" ? "V4" : "6B";
+}
+
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    mode = t.dataset.mode;
+    document.getElementById("route-mode").style.display = mode === "route" ? "block" : "none";
+    document.getElementById("boulder-mode").style.display = mode === "boulder" ? "block" : "none";
+  });
+});
+
+document.getElementById("route_system").addEventListener("change", populateRoute);
+document.getElementById("boulder_system").addEventListener("change", populateBoulder);
+
+populateRoute();
+populateBoulder();
+
+function convertGrade() {
+  let rows = [];
+
+  if (mode === "route") {
+    const sys = document.getElementById("route_system").value;
+    const grade = document.getElementById("route_grade").value;
+    const idx = ROUTE_INDICES[sys];
+    const row = ROUTE_TABLE.find(r => r[idx] === grade);
+    if (!row) return;
+
+    Object.keys(ROUTE_LABELS).forEach(s => {
+      if (s !== sys) {
+        rows.push({ system: ROUTE_LABELS[s], value: row[ROUTE_INDICES[s]] });
+      }
+    });
+  } else {
+    const sys = document.getElementById("boulder_system").value;
+    const grade = document.getElementById("boulder_grade").value;
+    const idx = sys === "vgrade" ? 0 : 1;
+    const row = BOULDER_TABLE.find(r => r[idx] === grade);
+    if (!row) return;
+
+    const other = sys === "vgrade" ? "font" : "vgrade";
+    const other_idx = sys === "vgrade" ? 1 : 0;
+    rows.push({ system: BOULDER_LABELS[other], value: row[other_idx] });
+  }
+
+  document.getElementById("results").innerHTML = `
+    <h3 style="margin-bottom: 0.75rem;">Equivalent grades:</h3>
+    ${rows.map(r => `<div class="grade-row"><span class="system">${r.system}</span><span class="value">${r.value}</span></div>`).join("")}
+    <div class="affiliate">
+      <strong>Climbing gear on eBay:</strong><br>
+      <a href="https://www.ebay.com/sch/i.html?_nkw=black+diamond+camalot&campid=5339144864" rel="sponsored" target="_blank">Black Diamond Camalots on eBay</a><br>
+      <a href="https://www.ebay.com/sch/i.html?_nkw=la+sportiva+climbing+shoes&campid=5339144864" rel="sponsored" target="_blank">La Sportiva climbing shoes on eBay</a><br>
+      <a href="https://www.ebay.com/sch/i.html?_nkw=petzl+grigri&campid=5339144864" rel="sponsored" target="_blank">Petzl Grigris on eBay</a><br>
+      <a href="https://www.ebay.com/sch/i.html?_nkw=climbing+rope+60m&campid=5339144864" rel="sponsored" target="_blank">60m climbing ropes on eBay</a>
+      <div class="disc">eBay Partner Network affiliate links. Small commission on purchases. Doesn't change your price. Used cams from trusted shops are a smart way to build a rack; check the trigger wires and the sling for damage.</div>
+    </div>
+  `;
+  document.getElementById("results").classList.add("visible");
+}
+</script>
+</body>
+</html>
